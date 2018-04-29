@@ -25,9 +25,17 @@ class TutorEditProfileViewController: UIViewController , UIImagePickerController
     
     @IBAction func bioButtonPressed(_ sender: Any) {
         AllVariables.bio = bioText.text!
-        self.databaseRef.child("Users").child("Tutor").child(AllVariables.uid).child("bio").setValue(bioText.text)
-        
-        navigationController?.popViewController(animated: true)
+        Database.database().reference().child("TutorList").observeSingleEvent(of: DataEventType.value, with: { (s) in
+            let enumer = s.children
+            while let rest = enumer.nextObject() as? DataSnapshot {
+                if (rest.hasChild(AllVariables.Username)) {
+                    self.databaseRef.child("TutorList").child(rest.key).child(AllVariables.Username).child("Bio").setValue(AllVariables.bio)
+                }
+            }
+            self.databaseRef.child("Users").child("Tutor").child(AllVariables.uid).child("bio").setValue(self.bioText.text)
+            
+            self.navigationController?.popViewController(animated: true)
+        })
         
     }
     
@@ -162,7 +170,7 @@ class TutorEditProfileViewController: UIViewController , UIImagePickerController
             else {
                 let alertView = UIAlertView(title: "Delete Account", message: "You have successfully deleted your account.", delegate: self, cancelButtonTitle: "Goodbye")
                 alertView.show()
-                let loginVC = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "LoginViewController") as UIViewController
+                let loginVC = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "CustomLoginViewController") as UIViewController
                 self.present(loginVC, animated: true, completion: nil)
                 self.databaseRef.child("Users").child("Usernames").child(AllVariables.Username).removeValue()
                 self.databaseRef.child("Users").observeSingleEvent(of: DataEventType.value, with: { (s) in
@@ -201,6 +209,10 @@ class TutorEditProfileViewController: UIViewController , UIImagePickerController
         
     }
     
-
+    @IBAction func onTap(_ sender: Any) {
+        
+        view.endEditing(true)
+    }
+    
 
 }

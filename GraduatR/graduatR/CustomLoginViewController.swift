@@ -9,8 +9,12 @@
 import UIKit
 import Firebase
 import FirebaseAuth
+import GoogleSignIn
+import FBSDKLoginKit
+import FBSDKShareKit
+import FBSDKCoreKit
 
-class CustomLoginViewController: UIViewController
+class CustomLoginViewController: UIViewController, GIDSignInUIDelegate, FBSDKLoginButtonDelegate, UIGestureRecognizerDelegate
 {
     
     @IBOutlet weak var emailTextField: UITextField!
@@ -18,14 +22,46 @@ class CustomLoginViewController: UIViewController
     
     var userUid: String!
     
+    func clear() {
+        AllVariables.courses.removeAll()
+        AllVariables.profpic = ""
+        AllVariables.bio = ""
+        AllVariables.books.removeAll()
+        AllVariables.courseratings.removeAll()
+        AllVariables.coursegrade.removeAll()
+        AllVariables.examrating.removeAll()
+        AllVariables.profratings.removeAll()
+    }
     
     override func viewDidLoad()
     {
         super.viewDidLoad()
+        clear()
+        NotificationCenter.default.addObserver(self, selector: #selector(CustomLoginViewController.keyboardWillShow), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(CustomLoginViewController.keyboardWillHide), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
+
+        configureGoogleSignInButton()
+        configureFacebookSignInButton()
+        dismissOnTap()
         
-        // Do any additional setup after loading the view.
     }
-    
+
+    @objc func keyboardWillShow(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y == 0{
+                self.view.frame.origin.y -= keyboardSize.height
+            }
+        }
+    }
+
+    @objc func keyboardWillHide(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y != 0{
+                self.view.frame.origin.y += keyboardSize.height
+            }
+        }
+    }
+
     override func didReceiveMemoryWarning()
     {
         super.didReceiveMemoryWarning()
@@ -62,9 +98,6 @@ class CustomLoginViewController: UIViewController
                                             AllVariables.courses.append(rest.value as! String)
                                         }
                                         })
-                                    
-                                    
-                                        
                                     })
                                 self.userUid = user.uid
                                 self.performSegue(withIdentifier: "signingInStudent", sender: self)
@@ -125,7 +158,7 @@ class CustomLoginViewController: UIViewController
                                                 self.performSegue(withIdentifier: "signingInTutor", sender: self)
                                             }
                                             else {
-                                                let alert = UIAlertController(title: "Sign in error", message: "error signing in", preferredStyle: .alert)
+                                                let alert = UIAlertController(title: "Sign in error", message: "Error signing in", preferredStyle: .alert)
                                                 let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
                                                     print ("ok tappped")
                                                 }
@@ -142,27 +175,26 @@ class CustomLoginViewController: UIViewController
                         })
                     }
                 }
+                else {
+                    let alert = UIAlertController(title: "Sign in error", message: "Error signing in", preferredStyle: .alert)
+                    let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
+                        print ("ok tappped")
+                    }
+                    alert.addAction(OKAction)
+                    self.present(alert, animated: true) {
+                        print("ERROR")
+                    }
+                    print("error signing in")
+                }
         })
         }
     }
-
-                            //                            let value = snapshotA.value as? NSDictionary
-                            //                            AllVariables.Fname = value?["Fname"] as? String ?? ""
-                            //                            AllVariables.Lname = value?["Lname"] as? String ?? ""
-                            //                            AllVariables.bio = value?["bio"] as? String ?? ""
-                            //                            AllVariables.GPA = value?["GPA"] as? String ?? ""
-                            //                            AllVariables.profpic = value?["profile_pic"] as? String ?? ""
-                            //                            AllVariables.standing = value?["Class"] as? String ?? ""
-                            
-     
-    
-    
     @IBAction func registerButton(_ sender: Any)
     {
         Auth.auth().createUser(withEmail: emailTextField.text!, password: passwordTextField.text!, completion: { (user,error) in
             if error != nil
             {
-                let alert = UIAlertController(title: "Error", message: "cant create user", preferredStyle: .alert)
+                let alert = UIAlertController(title: "Error", message: "Cant create user!", preferredStyle: .alert)
                 let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
                     print ("ok tappped")
                 }
@@ -186,7 +218,7 @@ class CustomLoginViewController: UIViewController
                     changeRequest.commitChanges { error in
                         if let error = error
                         {
-                            let alert = UIAlertController(title: "Error", message: "error registering user", preferredStyle: .alert)
+                            let alert = UIAlertController(title: "Error", message: "Error registering user", preferredStyle: .alert)
                             let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
                                 print ("ok tappped")
                             }
@@ -209,6 +241,105 @@ class CustomLoginViewController: UIViewController
             //self.uploadImage()
         })
     }
+
+    func dismissOnTap() {
+        self.view.isUserInteractionEnabled = true
+        let tap = UITapGestureRecognizer(target: self, action: #selector(CustomLoginViewController.onTap(_:)))
+        tap.delegate = self
+        tap.cancelsTouchesInView = false
+        self.view.addGestureRecognizer(tap)
+    }
+    
+    func gestureRecognizer(gestureRecognizer: UIGestureRecognizer, shouldReceiveTouch touch: UITouch) -> Bool {
+        if touch.view is GIDSignInButton {
+            return false
+        }
+        return true
+    }
+   
+     @IBAction func onTap(_ sender: Any) {
+        self.view.endEditing(true)
+    }
+    
+    fileprivate func configureGoogleSignInButton()
+    {
+        let googleSignInButton = GIDSignInButton()
+        googleSignInButton.frame = CGRect(x: 75, y: 475, width: view.frame.width - 150, height: 150)
+        view.addSubview(googleSignInButton)
+        GIDSignIn.sharedInstance().uiDelegate = self
+    }
+    
+    fileprivate func configureFacebookSignInButton()
+    {
+        let facebookSignInButton = FBSDKLoginButton()
+        facebookSignInButton.frame = CGRect(x: 75, y: 550, width: view.frame.width - 150, height: 50)
+        view.addSubview(facebookSignInButton)
+        facebookSignInButton.delegate = self
+    }
+    func loginButton(_ loginButton: FBSDKLoginButton!, didCompleteWith result: FBSDKLoginManagerLoginResult!, error: Error!) {
+        if error == nil {
+            
+            print("User just logged in via Facebook")
+            let credential = FacebookAuthProvider.credential(withAccessToken: FBSDKAccessToken.current().tokenString)
+            Auth.auth().signIn(with: credential, completion: { (user, error) in
+                if (error != nil) {
+                    print("Facebook authentication failed")
+                } else {
+                    let databaseRef = Database.database().reference();
+                    
+                    print("Facebook authentication succeed")
+                    databaseRef.child("Users").observeSingleEvent(of: DataEventType.value, with: {(sap) in
+                        let enumer = sap.children
+                        while let rest = enumer.nextObject() as? DataSnapshot {
+                            if (rest.hasChild(Auth.auth().currentUser!.uid)) {
+                                    print("HEREEEEEE")
+                                    print(rest.key)
+                                    print(Auth.auth().currentUser!.uid)
+                                databaseRef.child("Users").child(rest.key).child(Auth.auth().currentUser!.uid).observeSingleEvent(of: DataEventType.value, with: { (snap) in
+                                    
+                                    
+                                    AllVariables.uid = Auth.auth().currentUser!.uid
+                                    print("HEREEE?")
+                                    let value = snap.value as? NSDictionary
+                                    AllVariables.Username = value?["Username"] as? String ?? ""
+                                    AllVariables.Fname = (value?["Fname"] as? String)!
+                                    AllVariables.Lname = (value?["Lname"] as? String)!
+                                    AllVariables.bio = value?["bio"] as? String ?? ""
+                                    AllVariables.GPA = value?["GPA"] as? String ?? ""
+                                    AllVariables.profpic = value?["profile_pic"] as? String ?? ""
+                                    AllVariables.standing = value?["Class"] as? String ?? ""
+                                    
+                                    databaseRef.child("Users").child(rest.key).child(AllVariables.uid).child("Courses").observeSingleEvent(of: DataEventType.value, with: { (snapshotCourse) in
+                                        let counter = 0;
+                                        let enumer = snapshotCourse.children
+                                        while let rest = enumer.nextObject() as? DataSnapshot {
+                                            AllVariables.courses.append(rest.value as! String)
+                                        }
+                                        
+                                        let mainStoryBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
+                                        let protectedPage = mainStoryBoard.instantiateViewController(withIdentifier: "tabBar") as! UITabBarController
+                                        let appDelegate = UIApplication.shared.delegate
+                                        appDelegate?.window??.rootViewController = protectedPage
+                                        
+                                    })
+                                    
+                                })
+                            }
+                        }
+                        self.performSegue(withIdentifier: "register", sender: self)
+                    })
+                }
+            })
+        } else {
+            print("An error occured the user couldn't log in")
+        }
+    }
+  
+    func loginButtonDidLogOut(_ loginButton: FBSDKLoginButton!) {
+        print("User just logged out from his Facebook account")
+    }
+    
+    
     
     
 }

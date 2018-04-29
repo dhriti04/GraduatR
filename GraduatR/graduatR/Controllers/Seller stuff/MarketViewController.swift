@@ -187,25 +187,35 @@ class MarketViewController: UIViewController, UITableViewDataSource, UITableView
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         
         if (segue.identifier == "bookClick") {
-        
-        let vc = segue.destination as! ClickBookCellViewController
-        let cell = sender as! UITableViewCell
-        let indexPath = tableView.indexPath(for: cell)!
-        
-            let name = booktitle[indexPath.row]
+            
+            let cell = sender as! UITableViewCell
+            let indexPath = tableView.indexPath(for: cell)!
+            let vc = segue.destination as! ClickBookCellViewController
+            
+            let name = self.booktitle[indexPath.row]
             vc.bookname = name
-            let auth = bookauthor[indexPath.row]
+            let auth = self.bookauthor[indexPath.row]
             vc.bookauthor = auth
-            let pri = bookprice[indexPath.row]
+            let pri = self.bookprice[indexPath.row]
             vc.bookprice = pri
-            let cour = bookcourse[indexPath.row]
+            let cour = self.bookcourse[indexPath.row]
             vc.bookclass = cour
-            let user = sellername[indexPath.row]
+            let user = self.sellername[indexPath.row]
             vc.seller = user
-            vc.selleruid = uid[indexPath.row]
-        
+            vc.selleruid = self.uid[indexPath.row]
+            self.databaseRef.child("Users").child("Student").observeSingleEvent(of: DataEventType.value, with: { (user) in
+                if (!user.hasChild(self.uid[indexPath.row])) {
+                    let alert = UIAlertController(title: "404", message: "Seller no longer exists!", preferredStyle: .alert)
+                    let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
+                        print ("ok tappped")
+                    }
+                    alert.addAction(OKAction)
+                    self.present(alert, animated: true) {
+                        print("ERROR")
+                    }
+                }
+            })
         }
-        
     }
 
 }

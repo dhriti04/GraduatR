@@ -31,6 +31,24 @@ class AddEventsViewController: UIViewController {
         super.viewDidLoad()
         
         // Do any additional setup after loading the view.
+        NotificationCenter.default.addObserver(self, selector: #selector(AddEventsViewController.keyboardWillShow), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(AddEventsViewController.keyboardWillHide), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
+    }
+    
+    @objc func keyboardWillShow(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y == 0{
+                self.view.frame.origin.y -= keyboardSize.height
+            }
+        }
+    }
+    
+    @objc func keyboardWillHide(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y != 0{
+                self.view.frame.origin.y += keyboardSize.height
+            }
+        }
     }
     
     override func didReceiveMemoryWarning() {
@@ -61,6 +79,10 @@ class AddEventsViewController: UIViewController {
         let endDate = dateFormatter.string(from: endTime.date)
         self.databaseRef.child("Events").child(eventNameTextField.text!).child("End Date").setValue(endDate)
         
+    }
+    @IBAction func onTap(_ sender: Any) {
+        
+        view.endEditing(true)
     }
     
 }

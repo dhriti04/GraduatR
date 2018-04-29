@@ -13,7 +13,7 @@ import FirebaseAuth
 import FirebaseDatabase
 import FirebaseStorage
 
-class TutorViewProfileViewController: UIViewController {
+class TutorViewProfileViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     
     @IBOutlet weak var myCourses: UILabel!
     var list = String()
@@ -22,6 +22,9 @@ class TutorViewProfileViewController: UIViewController {
     var storageRef = Storage.storage().reference()
     var image: UIImageView!
     
+    @IBOutlet weak var tableView: UITableView!
+    var courses = [String]()
+
     @IBOutlet weak var pictureonprofilepage: UIImageView!
     @IBOutlet weak var updateBioText: UILabel!
     
@@ -36,7 +39,12 @@ class TutorViewProfileViewController: UIViewController {
         //updateBioText.text = AllVariables.bio
         
         
-        myCourses.text = "No courses added!"
+        
+        self.tableView.reloadData()
+        self.tableView.delegate = self
+        self.tableView.dataSource = self
+        
+//        myCourses.text = "No courses added!"
     }
     func setProfilePicture(imageView:UIImageView, imageToSet:UIImage)
     {
@@ -55,26 +63,92 @@ class TutorViewProfileViewController: UIViewController {
             setProfilePicture(imageView: self.pictureonprofilepage,imageToSet:UIImage(data: data! as Data)!)
         }
         let size = AllVariables.courses.endIndex
-        list.removeAll()
+//        list.removeAll()
+        
         if (size != 0) {
-            print (AllVariables.courses)
             var  i = 0;
             
             while (i < size){
-                list += "\n \(AllVariables.courses[i])"
-                i += 1
+                    self.courses.append(AllVariables.courses[i])
+                    i += 1
+                
+                
+                self.tableView.reloadData()
+                self.tableView.delegate = self
+                self.tableView.dataSource = self
             }
-            myCourses.text = list
+            //myCourses.text = list
+            
+            print(courses)
         }
+      
         
         
         
         
+        
+        
+    }
+    override func viewDidDisappear(_ animated: Bool) {
+        self.courses.removeAll()
     }
     
     override func didReceiveMemoryWarning()
     {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return courses.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "TutorProfCell", for: indexPath) as! TutorProfCell
+        
+        let nam = courses[indexPath.row]
+        print("....lets seee....")
+        cell.courseTutoring!.text = nam
+        
+        return cell
+    }
+
+    
+    func clear() {
+        AllVariables.Username = ""
+        AllVariables.Fname = ""
+        AllVariables.Lname = ""
+        AllVariables.GPA = ""
+        AllVariables.standing = ""
+        AllVariables.courses.removeAll()
+        AllVariables.profpic = ""
+        AllVariables.bio = ""
+        AllVariables.uid = ""
+        AllVariables.books.removeAll()
+        AllVariables.courseselected = ""
+        AllVariables.profselected = ""
+        AllVariables.courseratings.removeAll()
+        AllVariables.coursegrade.removeAll()
+        AllVariables.examrating.removeAll()
+        AllVariables.profratings.removeAll()
+        AllVariables.gpaAnon = ""
+    }
+
+    @IBAction func logoutButton(_ sender: Any) {
+        
+        if (Auth.auth().currentUser != nil)
+        {
+            do {
+                try? Auth.auth().signOut()
+                
+                if (Auth.auth().currentUser == nil) {
+                    print("USER LOG OUT")
+                    GIDSignIn.sharedInstance().signOut()
+                    let loginVC = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "CustomLoginViewController") as UIViewController
+                    self.present(loginVC, animated: true, completion: nil)
+                    clear()
+                }
+            }
+        }
     }
 }

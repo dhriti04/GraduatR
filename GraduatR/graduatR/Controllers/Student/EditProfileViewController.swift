@@ -30,24 +30,72 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
     
     @IBOutlet weak var clickAddParent: UIButton!
     
+    func clear() {
+        AllVariables.Username = ""
+        AllVariables.Fname = ""
+        AllVariables.Lname = ""
+        AllVariables.GPA = ""
+        AllVariables.standing = ""
+        AllVariables.courses.removeAll()
+        AllVariables.profpic = ""
+        AllVariables.bio = ""
+        AllVariables.uid = ""
+        AllVariables.books.removeAll()
+        AllVariables.courseselected = ""
+        AllVariables.profselected = ""
+        AllVariables.courseratings.removeAll()
+        AllVariables.coursegrade.removeAll()
+        AllVariables.examrating.removeAll()
+        AllVariables.profratings.removeAll()
+        AllVariables.gpaAnon = ""
+    }
     
     @IBAction func bioButtonPressed(_ sender: Any) {
-        AllVariables.bio = bioText.text!
-        AllVariables.GPA = gpaTextField.text!
-        
+       
+        let gpaNumber = NSString(string: gpaTextField.text!).doubleValue
+        if (!(gpaNumber <= 4.0 && gpaNumber >= 0.0))
+        {
+            let alert = UIAlertController(title: "GPA Error", message: "Not a valid GPA", preferredStyle: .alert)
+            let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
+                print ("ok tappped")
+            }
+            alert.addAction(OKAction)
+            self.present(alert, animated: true) {
+                print("ERROR")
+            }
+        }
+        else {
         if (gpaAnon.isOn)
         {
-            databaseRef.child("Users").child("Student").child(AllVariables.uid).setValue(["Username": AllVariables.Username, "Fname": AllVariables.Fname, "Lname": AllVariables.Lname, "GPA" : AllVariables.GPA, "Class": AllVariables.standing, "GPA Anonymity": "yes"])
+            databaseRef.child("Users").child("Student").child(AllVariables.uid).child("GPA").setValue(gpaTextField.text!)
+            databaseRef.child("Users").child("Student").child(AllVariables.uid).child("GPA Anonymity").setValue("yes")
+            databaseRef.child("Users").child("Student").child(AllVariables.uid).child("bio").setValue(bioText.text!)
             AllVariables.gpaAnon = "yes"
+            AllVariables.GPA = gpaTextField.text!
+            AllVariables.bio = bioText.text!
         }
         else if !(gpaAnon.isOn) {
-            databaseRef.child("Users").child("Student").child(AllVariables.uid).setValue(["Username": AllVariables.Username, "Fname": AllVariables.Fname, "Lname": AllVariables.Lname, "GPA" : AllVariables.GPA, "Class": AllVariables.standing, "GPA Anonymity": "no"])
-            AllVariables.gpaAnon = "no"
+            if (gpaTextField.text == "")
+            {
+                let alert = UIAlertController(title: "GPA ERROR", message: "Cannot have empty GPA field and wish to make GPA public", preferredStyle: .alert)
+                let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
+                    print ("ok tappped")
+                }
+                alert.addAction(OKAction)
+                self.present(alert, animated: true) {
+                    print("Sucesss")
+                }
+            } else {
+                databaseRef.child("Users").child("Student").child(AllVariables.uid).child("GPA").setValue(gpaTextField.text!)
+                databaseRef.child("Users").child("Student").child(AllVariables.uid).child("GPA Anonymity").setValue("no")
+                databaseRef.child("Users").child("Student").child(AllVariables.uid).child("bio").setValue(bioText.text!)
+                AllVariables.gpaAnon = "no"
+                AllVariables.GPA = gpaTextField.text!
+                AllVariables.bio = bioText.text!
+            }
         }
-        AllVariables.GPA = gpaTextField.text!
-        self.databaseRef.child("Users").child("Student").child(AllVariables.uid).child("bio").setValue(bioText.text)
         navigationController?.popViewController(animated: true)
-        
+    }
     }
     
     
@@ -73,6 +121,24 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
             
         }
         // Do any additional setup after loading the view.
+        NotificationCenter.default.addObserver(self, selector: #selector(EditProfileViewController.keyboardWillShow), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(EditProfileViewController.keyboardWillHide), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
+    }
+    
+    @objc func keyboardWillShow(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y == 0{
+                self.view.frame.origin.y -= keyboardSize.height
+            }
+        }
+    }
+    
+    @objc func keyboardWillHide(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            if self.view.frame.origin.y != 0{
+                self.view.frame.origin.y += keyboardSize.height
+            }
+        }
     }
     
     override func didReceiveMemoryWarning() {
@@ -121,14 +187,7 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
         self.present(myActionSheet, animated: true, completion: nil)
     }
     
-    
-    //        func dismissFullScreenImage(sender: AnyObject) {
-    //            (sender ).removeFromSuperView()
-    //   }
-    //        imagePicker.allowsEditing = false
-    //        imagePicker.sourceType = .photoLibrary
-    //        imagePicker.mediaTypes = UIImagePickerController.availableMediaTypes(for: .photoLibrary)!
-    //        imagePicker(picker, animated: true, completion: nil)
+
     
     
     func setProfilePicture(imageView:UIImageView, imageToSet:UIImage)
@@ -151,8 +210,25 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                 if (error == nil) {
                     let downloadURL = metadata?.downloadURL()
                     self.databaseRef.child("Users").child("Student").child(AllVariables.uid).child("profile_pic").setValue(downloadURL!.absoluteString)
-                    AllVariables.profpic = downloadURL!.absoluteString
-                    print("successful upload")
+                        AllVariables.profpic = downloadURL!.absoluteString
+                        Database.database().reference().child("Courses").observeSingleEvent(of: DataEventType.value, with: { (s) in
+                            let enumer = s.children
+                            while let rest = enumer.nextObject() as? DataSnapshot {
+                                if (rest.hasChild(AllVariables.Username)) {
+                                    self.databaseRef.child("Courses").child(rest.key).child(AllVariables.Username).child("ProfPic").setValue(AllVariables.profpic)
+                                }
+                            }
+                            
+                        })
+                    
+                    let alert = UIAlertController(title: "SUCCESS", message: "Profile Picture updated!", preferredStyle: .alert)
+                    let OKAction = UIAlertAction(title: "OK", style: .default) { (action) in
+                        print ("ok tappped")
+                    }
+                    alert.addAction(OKAction)
+                    self.present(alert, animated: true) {
+                        print("Sucesss")
+                    }
                 }
                 else {
                     print(error?.localizedDescription)
@@ -171,9 +247,7 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
     //    }
     
     override func viewDidAppear(_ animated: Bool) {
-        //AllVariables.bio = bioText.text
-        bioText.text = AllVariables.bio
-        gpaTextField.text = AllVariables.GPA
+        
     }
     
     @IBAction func deleteButton(_ sender: Any) {
@@ -185,20 +259,39 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
             else {
                 let alertView = UIAlertView(title: "Delete Account", message: "You have successfully deleted your account.", delegate: self, cancelButtonTitle: "Goodbye")
                 alertView.show()
-                let loginVC = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "LoginViewController") as UIViewController
+                let loginVC = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "CustomLoginViewController") as UIViewController
                 self.present(loginVC, animated: true, completion: nil)
+                print("UID \(AllVariables.uid)")
+                //Remove parent if any?????
+                self.databaseRef.child("Users").child("Student").child(AllVariables.uid).observeSingleEvent(of: DataEventType.value, with: { (aa) in
+                    
+                    if (aa.hasChild("ParentUID")) {
+                        let rest = aa.value as! NSDictionary
+                        
+                        let parentUID = rest["ParentUID"] as! String
+                        print("has a parent.....")
+                        self.databaseRef.child("Users").child("Parent").child(parentUID).child("Studentid").removeValue()
+                        print("parent deleeeeeteeed")
+                    }
+                })
+                
                 self.databaseRef.child("Users").child("Usernames").child(AllVariables.Username).removeValue()
+                print("parent deleeeeeteeed")
+                
                 self.databaseRef.child("Users").observeSingleEvent(of: DataEventType.value, with: { (s) in
                     let enumer = s.children
                     while let rest = enumer.nextObject() as? DataSnapshot {
                         if (rest.hasChild(AllVariables.uid)) {
                             if (rest.key == "Student") {
-                                self.databaseRef.child("StudentUsers").child(AllVariables.Username).removeValue()
+                                self.databaseRef.child("Users").child("StudentUsers").child(AllVariables.Username).removeValue()
                             }
                             self.databaseRef.child("Users").child(rest.key).child(AllVariables.uid).removeValue()
                         }
                     }
                 })
+                
+                print("parent deleeeeeteeed")
+                
                 //Remove from ProfessorReviews
                 self.databaseRef.child("ProfessorReviews").observeSingleEvent(of: DataEventType.value, with: { (ss) in
                     let enumer = ss.children
@@ -217,6 +310,8 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                         }
                     }
                 })
+                print("parent deleeeeeteeed")
+                
                 //Remove from CourseReviews
                 self.databaseRef.child("CourseReviews").observeSingleEvent(of: DataEventType.value, with: { (a) in
                     let enumer = a.children
@@ -226,6 +321,8 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                         }
                     }
                 })
+                print("parent deleeeeeteeed")
+                
                 //Remove from courses
                 self.databaseRef.child("Courses").observeSingleEvent(of: DataEventType.value, with: { (aa) in
                     let enumer = aa.children
@@ -235,15 +332,19 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                         }
                     }
                 })
+                print("parent deleeeeeteeed")
+                
                 //Remove from exam reviews
                 self.databaseRef.child("ExamReviews").observeSingleEvent(of: DataEventType.value, with: { (aaa) in
                     let enumer = aaa.children
                     while let rest = enumer.nextObject() as? DataSnapshot {
                         if (rest.hasChild(AllVariables.Username)) {
-                            self.databaseRef.child("Courses").child(rest.key).child(AllVariables.Username).removeValue()
+                            self.databaseRef.child("ExamReviews").child(rest.key).child(AllVariables.Username).removeValue()
                         }
                     }
                 })
+                print("parent deleeeeeteeed")
+                
                 //Remove from chats
                 self.databaseRef.child("Chats").observeSingleEvent(of: DataEventType.value, with: { (b) in
                     if (b.hasChild(AllVariables.Username)) {
@@ -256,18 +357,27 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                         }
                     }
                 })
+                print("parent deleeeeeteeed")
+                
                 //Remove from GroupChats
-                self.databaseRef.child("GroupChats").child("chatUsers").observeSingleEvent(of: DataEventType.value, with: { (bb) in
+                self.databaseRef.child("GroupChats").observeSingleEvent(of: DataEventType.value, with: { (bb) in
                     let enumer = bb.children
                     while let rest = enumer.nextObject() as? DataSnapshot {
-                        if (rest.hasChild(AllVariables.Username)) {
-                            self.databaseRef.child("GroupChats").child("chatUsers").child(rest.key).child(AllVariables.Username).removeValue()
-                        }
+                        self.databaseRef.child("GroupChats").child(rest.key).child("chatUsers").observeSingleEvent(of: DataEventType.value, with: {(bbc) in
+                            if (bbc.hasChild(AllVariables.Username)) {
+                            self.databaseRef.child("GroupChats").child(rest.key).child("chatUsers").child(AllVariables.Username).removeValue()
+                            }
+                        })
                     }
                 })
             }
         })
     }
+    
+    @IBAction func onTap(_ sender: Any) {
+        view.endEditing(true)
+    }
+    
 }
 
 
